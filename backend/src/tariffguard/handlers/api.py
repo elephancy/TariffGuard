@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from datetime import date as dt_date
+from datetime import timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
@@ -68,17 +70,21 @@ def _groups(event: dict[str, Any]) -> set[str]:
     return {item.strip() for item in str(value).strip("[]").split(",") if item.strip()}
 
 
-def _offset(value: str | None) -> int:
+def _page_cursor(value: str | None) -> dict[str, Any] | None:
     if not value:
-        return 0
+        return None
     try:
-        return max(0, int(urlsafe_b64decode(value.encode()).decode()))
-    except (ValueError, UnicodeDecodeError):
+        decoded = json.loads(urlsafe_b64decode(value.encode()).decode())
+        return decoded if isinstance(decoded, dict) else None
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
         raise ValueError("invalid cursor") from None
 
 
-def _cursor(value: int | None) -> str | None:
-    return urlsafe_b64encode(str(value).encode()).decode() if value is not None else None
+def _cursor(value: dict[str, Any] | None) -> str | None:
+    if value is None:
+        return None
+    encoded = json.dumps(value, separators=(",", ":"), sort_keys=True)
+    return urlsafe_b64encode(encoded.encode()).decode()
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -171,15 +177,21 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         params = event.get("queryStringParameters") or {}
         try:
             limit = min(100, max(1, int(params.get("limit", "50"))))
-            offset = _offset(params.get("cursor"))
+            cursor = _page_cursor(params.get("cursor"))
         except ValueError:
             return response(400, {"error": "invalid_pagination"}, cors_origin=cors_origin)
-        sessions, next_offset, total = store.list_sessions(
-            limit=limit, offset=offset, status=params.get("status")
+        search = (params.get("search") or "").strip() or None
+        sessions, next_cursor, stats = store.list_sessions(
+            limit=limit, cursor=cursor, status=params.get("status"), search=search
         )
         return response(
             200,
-            {"sessions": sessions, "nextCursor": _cursor(next_offset), "total": total},
+            {
+                "sessions": sessions,
+                "nextCursor": _cursor(next_cursor),
+                "total": stats["total"],
+                "stats": stats,
+            },
             cors_origin=cors_origin,
         )
     if method == "POST" and path.startswith("/sessions/") and path.endswith("/invalidate"):
@@ -229,10 +241,16 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             cors_origin=cors_origin,
         )
     if method == "GET" and path == "/overview":
-        date = (event.get("queryStringParameters") or {}).get("date", iso_now()[:10])
+        overview_date = (event.get("queryStringParameters") or {}).get("date", iso_now()[:10])
+        selected = dt_date.fromisoformat(overview_date)
+        start = (selected - timedelta(days=6)).isoformat()
         return response(
             200,
-            build_overview(store.all_sessions_scan(), store.list_alerts(date), date),
+            build_overview(
+                store.list_sessions_between(start_date=start, end_date=selected.isoformat()),
+                store.list_alerts(overview_date),
+                overview_date,
+            ),
             cors_origin=cors_origin,
         )
     if path.startswith("/admin/"):

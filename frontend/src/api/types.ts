@@ -110,6 +110,11 @@ export type SessionPage = {
   sessions: SessionRow[];
   nextCursor: string | null;
   total: number;
+  stats: {
+    total: number;
+    attention: number;
+    estimatedRevenue: string;
+  };
 };
 
 export type Operator = {

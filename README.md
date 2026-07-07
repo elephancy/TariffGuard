@@ -175,6 +175,14 @@ Audit summary:          PK=AUDIT_DAY#{yyyy-mm-dd}  SK=SUMMARY
 
 The `GSI1` index lists tariff versions across tariff IDs. Tariff versions are append-only; sessions use the newest `validFrom` at or before `startedAt`.
 
+`GSI2` lists session metadata globally by start time:
+
+```text
+Session listing:        GSI2PK=SESSIONS             GSI2SK=STARTED#{startedAt}#{sessionId}
+```
+
+The dashboard and `/sessions` endpoint use `GSI2` with cursor pagination. This keeps large demo datasets from forcing the API Lambda to scan and sort the full DynamoDB table on every page load.
+
 ## Local Setup
 
 Prerequisites: Python 3.12, Node.js 20.19+, npm, Terraform 1.6+, AWS credentials for deployment.
@@ -225,6 +233,15 @@ terraform plan -out=tfplan `
   -var='frontend_urls=["http://localhost:5173","https://tariffguard.elfeel.me"]' `
   -var="python_executable=python"
 terraform apply tfplan
+```
+
+When adding `GSI2` to an existing demo table, backfill old session rows once
+after Terraform finishes:
+
+```powershell
+python scripts/backfill_session_index.py `
+  --table-name $(terraform output -raw main_table_name) `
+  --region eu-central-1
 ```
 
 Linux or WSL:
@@ -326,19 +343,21 @@ python scripts/seed.py --api-url $API_URL --access-token $TOKEN
 
 The seed script creates a tariff and submits three sessions: one normal, one reversed meter rejection, and one suspicious average power flag.
 
-Generate a larger seven-day dataset after the tariff exists:
+Generate a larger dataset after the tariff exists:
 
 ```powershell
 python scripts/simulate_sessions.py `
   --api-url $API_URL `
   --access-token $TOKEN `
-  --count 500
+  --count 5000 `
+  --days 14
 ```
 
 The simulator uses a weighted mix of approximately 75% valid sessions, 10%
 low-severity long sessions, 5% medium-severity zero-energy or long-idle
 sessions, and 10% high-severity energy, power, meter, duration, or tariff
-failures. Charger, driver, energy, timing, and idle values vary
+failures. Each day varies around that overall distribution so multi-day charts
+do not look uniform. Charger, driver, energy, timing, and idle values vary
 deterministically; `--seed` changes the generated dataset. The script paces
 requests below the default API rate limit and retries throttled or transient
 server responses.

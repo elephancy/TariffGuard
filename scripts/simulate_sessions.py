@@ -34,12 +34,21 @@ def iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def severity_plan(count: int, rng: random.Random) -> list[str]:
-    return rng.choices(
-        tuple(SEVERITY_WEIGHTS),
-        weights=tuple(SEVERITY_WEIGHTS.values()),
-        k=count,
-    )
+def daily_severity_weights(days: int, rng: random.Random) -> list[dict[str, int]]:
+    profiles = []
+    for _ in range(days):
+        low = rng.randint(5, 15)
+        medium = rng.randint(2, 10)
+        high = rng.randint(4, 18)
+        profiles.append(
+            {
+                "VALID": 100 - low - medium - high,
+                "LOW": low,
+                "MEDIUM": medium,
+                "HIGH": high,
+            }
+        )
+    return profiles
 
 
 def build_session(
@@ -47,12 +56,13 @@ def build_session(
     rng: random.Random,
     anchor: datetime,
     severity: str | None = None,
+    days: int = 7,
 ) -> dict[str, object]:
     severity = severity or rng.choices(
         tuple(SEVERITY_WEIGHTS), weights=tuple(SEVERITY_WEIGHTS.values()), k=1
     )[0]
     scenario = rng.choice(SCENARIOS_BY_SEVERITY[severity])
-    day_offset = index % 7
+    day_offset = index % days
     started = (anchor - timedelta(days=day_offset)).replace(
         hour=rng.randint(5, 22), minute=rng.randint(0, 59), second=rng.randint(0, 59)
     )
@@ -123,16 +133,23 @@ def main() -> None:
     parser.add_argument("--access-token")
     parser.add_argument("--seed", type=int, default=20260701)
     parser.add_argument("--delay-ms", type=int, default=125)
+    parser.add_argument("--days", type=int, default=7)
     args = parser.parse_args()
+    if args.days < 1:
+        parser.error("--days must be at least 1")
 
     rng = random.Random(args.seed)
-    severities = severity_plan(args.count, random.Random(args.seed + 1))
+    profiles = daily_severity_weights(args.days, random.Random(args.seed + 1))
     anchor = datetime.now(UTC).replace(microsecond=0)
     counts: dict[int, int] = {}
     for index in range(args.count):
+        profile = profiles[index % args.days]
+        severity = rng.choices(
+            tuple(profile), weights=tuple(profile.values()), k=1
+        )[0]
         status = post(
             f"{args.api_url.rstrip('/')}/sessions",
-            build_session(index, rng, anchor, severities[index]),
+            build_session(index, rng, anchor, severity, args.days),
             args.access_token,
         )
         counts[status] = counts.get(status, 0) + 1

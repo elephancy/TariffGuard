@@ -73,7 +73,7 @@ def mark_failed_processing(store: DynamoRepository, session_id: str, error: str)
     )
     store.update_session_result(record)
     log("session_marked_failed_processing", sessionId=session_id, error=error)
-
+    
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     del context

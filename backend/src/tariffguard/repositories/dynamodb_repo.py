@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any
 
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from tariffguard.models.alert import AlertRecord
@@ -25,6 +25,17 @@ def _dump(value: Any) -> Any:
     return value
 
 
+def _session_index_key(started_at: str, session_id: str) -> str:
+    return f"STARTED#{started_at}#{session_id}"
+
+
+SESSION_LIST_PROJECTION = (
+    "sessionId, chargerId, userId, startedAt, stoppedAt, meterStartKwh, meterStopKwh, "
+    "idleMinutes, tariffId, #session_status, price, validationFlags"
+)
+SESSION_STATS_PROJECTION = "#session_status, price"
+
+
 class DuplicateSamePayload(Exception):
     def __init__(self, session_id: str) -> None:
         super().__init__("duplicate same payload")
@@ -37,6 +48,18 @@ class DuplicateChangedPayload(Exception):
 
 class DuplicateTariffVersion(Exception):
     pass
+
+
+def _session_filter(status: str | None, search: str | None) -> Any | None:
+    expression = Attr("status").eq(status) if status else None
+    if search:
+        search_expression = (
+            Attr("sessionId").contains(search)
+            | Attr("chargerId").contains(search)
+            | Attr("userId").contains(search)
+        )
+        expression = search_expression if expression is None else expression & search_expression
+    return expression
 
 
 class DynamoRepository:
@@ -136,6 +159,8 @@ class DynamoRepository:
             "entityType": "SESSION",
             "GSI1PK": f"CHARGER#{session.chargerId}",
             "GSI1SK": f"SESSION#{session.startedAt}#{session.sessionId}",
+            "GSI2PK": "SESSIONS",
+            "GSI2SK": _session_index_key(session.startedAt, session.sessionId),
         }
         charger_item = {
             **item,
@@ -212,15 +237,95 @@ class DynamoRepository:
             kwargs["ExclusiveStartKey"] = last_key
         return sorted(items, key=lambda item: item.get("startedAt", ""), reverse=True)
 
+    def list_sessions_between(self, *, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        kwargs: dict[str, Any] = {
+            "IndexName": "GSI2",
+            "KeyConditionExpression": Key("GSI2PK").eq("SESSIONS")
+            & Key("GSI2SK").between(f"STARTED#{start_date}", f"STARTED#{end_date}~"),
+            "ProjectionExpression": SESSION_LIST_PROJECTION,
+            "ExpressionAttributeNames": {"#session_status": "status"},
+            "ScanIndexForward": False,
+        }
+        while True:
+            response = self.main.query(**kwargs)
+            items.extend(response.get("Items", []))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            kwargs["ExclusiveStartKey"] = last_key
+        return items
+
     def list_sessions(
-        self, *, limit: int = 50, offset: int = 0, status: str | None = None
-    ) -> tuple[list[dict[str, Any]], int | None, int]:
-        sessions = self.all_sessions_scan()
-        if status:
-            sessions = [item for item in sessions if item.get("status") == status]
-        page = sessions[offset : offset + limit]
-        next_offset = offset + limit if offset + limit < len(sessions) else None
-        return page, next_offset, len(sessions)
+        self,
+        *,
+        limit: int = 50,
+        cursor: dict[str, Any] | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None, dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        stats = self.session_stats(status=status, search=search)
+        kwargs: dict[str, Any] = {
+            "IndexName": "GSI2",
+            "KeyConditionExpression": Key("GSI2PK").eq("SESSIONS"),
+            "ProjectionExpression": SESSION_LIST_PROJECTION,
+            "ExpressionAttributeNames": {"#session_status": "status"},
+            "Limit": limit,
+            "ScanIndexForward": False,
+        }
+        if cursor:
+            kwargs["ExclusiveStartKey"] = cursor
+        filter_expression = _session_filter(status, search)
+        if filter_expression is not None:
+            kwargs["FilterExpression"] = filter_expression
+
+        last_key = None
+        while len(items) < limit:
+            response = self.main.query(**kwargs)
+            items.extend(response.get("Items", []))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            kwargs["ExclusiveStartKey"] = last_key
+            kwargs["Limit"] = max(1, limit - len(items))
+
+        return items[:limit], last_key, stats
+
+    def session_stats(
+        self, *, status: str | None = None, search: str | None = None
+    ) -> dict[str, Any]:
+        total = 0
+        attention = 0
+        revenue = Decimal("0")
+        kwargs: dict[str, Any] = {
+            "IndexName": "GSI2",
+            "KeyConditionExpression": Key("GSI2PK").eq("SESSIONS"),
+            "ProjectionExpression": SESSION_STATS_PROJECTION,
+            "ExpressionAttributeNames": {"#session_status": "status"},
+        }
+        filter_expression = _session_filter(status, search)
+        if filter_expression is not None:
+            kwargs["FilterExpression"] = filter_expression
+
+        while True:
+            response = self.main.query(**kwargs)
+            for item in response.get("Items", []):
+                total += 1
+                session_status = item.get("status")
+                if session_status in {"FLAGGED", "REJECTED"}:
+                    attention += 1
+                revenue += Decimal(str((item.get("price") or {}).get("displayTotal", "0")))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            kwargs["ExclusiveStartKey"] = last_key
+
+        return {
+            "total": total,
+            "attention": attention,
+            "estimatedRevenue": str(revenue),
+        }
 
     def enqueue_session(self, session_id: str) -> None:
         if not self.sqs_queue_url:

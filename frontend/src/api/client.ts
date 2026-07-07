@@ -53,17 +53,33 @@ async function sendJson<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function getSessions(cursor?: string, status?: string): Promise<SessionPage> {
+export async function getSessions(cursor?: string, status?: string, limit = 100, search = ""): Promise<SessionPage> {
   if (useMocks) {
     await delay();
-    const sessions = status && status !== "ALL"
+    const normalized = search.trim().toLowerCase();
+    const statusFiltered = status && status !== "ALL"
       ? mockSessions.filter((item) => item.status === status)
       : mockSessions;
-    return { sessions, nextCursor: null, total: sessions.length };
+    const sessions = normalized
+      ? statusFiltered.filter((item) => [item.sessionId, item.chargerId, item.userId].some((value) => value.toLowerCase().includes(normalized)))
+      : statusFiltered;
+    const offset = cursor ? Number(cursor) || 0 : 0;
+    const nextOffset = offset + limit;
+    return {
+      sessions: sessions.slice(offset, nextOffset),
+      nextCursor: nextOffset < sessions.length ? String(nextOffset) : null,
+      total: sessions.length,
+      stats: {
+        total: sessions.length,
+        attention: sessions.filter((item) => item.status === "FLAGGED" || item.status === "REJECTED").length,
+        estimatedRevenue: sessions.reduce((sum, item) => sum + Number(item.price?.displayTotal ?? 0), 0).toFixed(2),
+      },
+    };
   }
-  const params = new URLSearchParams({ limit: "100" });
+  const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
   if (status && status !== "ALL") params.set("status", status);
+  if (search.trim()) params.set("search", search.trim());
   return getJson<SessionPage>(`/sessions?${params}`);
 }
 
