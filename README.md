@@ -159,7 +159,7 @@ Terraform creates API Gateway HTTP API, Cognito operator authentication, three P
 
 The backend uses direct Lambda handlers instead of FastAPI to keep the serverless path clear for interviews. Pydantic validates request bodies, `boto3` is the only AWS client dependency, and all money/energy calculations use `Decimal`. The validation worker returns `{"batchItemFailures": [...]}` so one bad SQS record does not fail the whole batch.
 
-Session ingestion uses `chargerId#sessionId` as the idempotency key and a stable SHA-256 hash of the normalized payload. A first submission writes to the idempotency table with `attribute_not_exists(idempotencyKey)`, stores a `PENDING_VALIDATION` session, enqueues SQS, and returns `202`. A duplicate with the same payload returns `200` and the existing session state. A duplicate with changed payload returns `409`.
+Session ingestion uses the globally addressable `sessionId` as the idempotency key and a stable SHA-256 hash of the normalized payload. A first submission writes to the idempotency table with `attribute_not_exists(idempotencyKey)`, stores a `PENDING_VALIDATION` session, enqueues SQS, and returns `202`. A duplicate with the same payload returns the existing completed state, or repairs and re-enqueues a missing or pending session. A duplicate with changed payload, including reuse by another charger, returns `409`.
 
 ## DynamoDB Access Patterns
 
@@ -398,7 +398,7 @@ Duplicate behavior:
 # Same payload: 200 with existing state.
 curl -i -X POST "$API_URL/sessions" -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d @examples/session.json
 
-# Same chargerId/sessionId with changed payload: 409.
+# Same sessionId with changed payload or chargerId: 409.
 curl -i -X POST "$API_URL/sessions" -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d @examples/changed-session.json
 ```
 

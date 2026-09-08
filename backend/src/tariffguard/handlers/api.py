@@ -138,15 +138,34 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             return response(
                 400, {"error": "validation_error", "details": details}, cors_origin=cors_origin
             )
-        key = idempotency_key(session.chargerId, session.sessionId)
+        key = idempotency_key(session.sessionId)
         digest = payload_hash(session.model_dump())
         try:
             store.put_idempotency(key, digest, session.sessionId)
         except DuplicateSamePayload as exc:
             existing = store.get_session(exc.session_id)
+            if existing is None:
+                now = iso_now()
+                record = SessionRecord(
+                    **session.model_dump(),
+                    status="PENDING_VALIDATION",
+                    rawPayload=session.model_dump(mode="json"),
+                    createdAt=now,
+                    updatedAt=now,
+                )
+                store.put_pending_session(record)
+                store.enqueue_session(session.sessionId)
+                return response(
+                    202,
+                    {"sessionId": session.sessionId, "status": "PENDING_VALIDATION"},
+                    cors_origin=cors_origin,
+                )
+            if existing.get("status") == "PENDING_VALIDATION":
+                store.enqueue_session(session.sessionId)
+                return response(202, existing, cors_origin=cors_origin)
             return response(
                 200,
-                existing or {"sessionId": exc.session_id, "status": "PENDING_VALIDATION"},
+                existing,
                 cors_origin=cors_origin,
             )
         except DuplicateChangedPayload:
@@ -154,7 +173,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 409,
                 {
                     "error": "idempotency_conflict",
-                    "message": "same charger/session with changed payload",
+                    "message": "same session ID with changed payload",
                 },
                 cors_origin=cors_origin,
             )

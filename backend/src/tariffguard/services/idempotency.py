@@ -16,8 +16,8 @@ def _normalize(value: Any) -> Any:
     return value
 
 
-def idempotency_key(charger_id: str, session_id: str) -> str:
-    return f"{charger_id}#{session_id}"
+def idempotency_key(session_id: str) -> str:
+    return session_id
 
 
 def payload_hash(payload: dict[str, Any]) -> str:

@@ -27,5 +27,5 @@ def test_payload_hash_changes_when_payload_changes() -> None:
     assert payload_hash(original) != payload_hash(changed)
 
 
-def test_idempotency_key_uses_charger_and_session() -> None:
-    assert idempotency_key("BER-CP-014", "sess_001") == "BER-CP-014#sess_001"
+def test_idempotency_key_matches_global_session_storage_identity() -> None:
+    assert idempotency_key("sess_001") == "sess_001"
