@@ -1,8 +1,9 @@
 resource "aws_dynamodb_table" "main" {
-  name         = "${local.name}-main"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = "${local.name}-main"
+  billing_mode                = "PAY_PER_REQUEST"
+  deletion_protection_enabled = true
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -51,12 +52,18 @@ resource "aws_dynamodb_table" "main" {
   point_in_time_recovery {
     enabled = var.enable_point_in_time_recovery
   }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.data.arn
+  }
 }
 
 resource "aws_dynamodb_table" "idempotency" {
-  name         = "${local.name}-idempotency"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "idempotencyKey"
+  name                        = "${local.name}-idempotency"
+  billing_mode                = "PAY_PER_REQUEST"
+  deletion_protection_enabled = true
+  hash_key                    = "idempotencyKey"
 
   attribute {
     name = "idempotencyKey"
@@ -66,5 +73,14 @@ resource "aws_dynamodb_table" "idempotency" {
   ttl {
     attribute_name = "ttl"
     enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.data.arn
   }
 }

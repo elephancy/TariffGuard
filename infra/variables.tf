@@ -25,7 +25,7 @@ variable "cors_origin" {
 variable "enable_point_in_time_recovery" {
   description = "Enable DynamoDB point-in-time recovery for production-like deployments."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "python_executable" {

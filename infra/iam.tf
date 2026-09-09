@@ -67,6 +67,22 @@ resource "aws_iam_role_policy" "lambda" {
           "cognito-idp:ListUsers"
         ]
         Resource = aws_cognito_user_pool.operators.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.data.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "xray:PutTraceSegments",
+          "xray:PutTelemetryRecords"
+        ]
+        Resource = "*"
       }
     ]
   })

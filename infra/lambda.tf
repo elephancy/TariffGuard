@@ -37,6 +37,10 @@ resource "aws_lambda_function" "api" {
     })
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   depends_on = [aws_cloudwatch_log_group.api]
 }
 
@@ -54,6 +58,10 @@ resource "aws_lambda_function" "validation_worker" {
     variables = local.common_environment
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   depends_on = [aws_cloudwatch_log_group.validation_worker]
 }
 
@@ -69,6 +77,10 @@ resource "aws_lambda_function" "audit_worker" {
 
   environment {
     variables = local.common_environment
+  }
+
+  tracing_config {
+    mode = "Active"
   }
 
   depends_on = [aws_cloudwatch_log_group.audit_worker]

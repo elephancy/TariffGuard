@@ -4,7 +4,12 @@ resource "aws_cognito_user_pool" "operators" {
   name                     = "${local.name}-operators"
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
-  mfa_configuration        = "OFF"
+  mfa_configuration        = "ON"
+  deletion_protection      = "ACTIVE"
+
+  software_token_mfa_configuration {
+    enabled = true
+  }
 
   username_configuration {
     case_sensitive = false
