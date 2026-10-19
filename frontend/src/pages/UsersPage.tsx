@@ -66,8 +66,8 @@ export function UsersPage() {
       <div className="space-y-5">
         <form onSubmit={submit} className="border border-line bg-panel p-5 shadow-panel">
           <div className="flex items-center gap-2"><Plus size={17} className="text-mint" /><h2 className="font-semibold">Add operator</h2></div>
-          <label className="mt-5 block text-xs font-semibold text-slate-400">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 h-11 w-full rounded border border-line bg-ink px-3 text-sm text-white outline-none focus:border-mint/50" /></label>
-          <label className="mt-4 block text-xs font-semibold text-slate-400">Role<select value={role} onChange={(event) => setRole(event.target.value as "operator" | "admin")} className="mt-2 h-11 w-full rounded border border-line bg-ink px-3 text-sm text-white outline-none"><option value="operator">Operator</option><option value="admin">Administrator</option></select></label>
+          <label className="mt-5 block text-xs font-semibold text-slate-400">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 h-11 w-full rounded border border-line bg-ink px-3 text-sm text-white outline-hidden focus:border-mint/50" /></label>
+          <label className="mt-4 block text-xs font-semibold text-slate-400">Role<select value={role} onChange={(event) => setRole(event.target.value as "operator" | "admin")} className="mt-2 h-11 w-full rounded border border-line bg-ink px-3 text-sm text-white outline-hidden"><option value="operator">Operator</option><option value="admin">Administrator</option></select></label>
           <button disabled={busy} className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded bg-mint text-sm font-semibold text-slate-950 disabled:opacity-60">{busy && <LoaderCircle size={16} className="animate-spin" />}Create account</button>
         </form>
 

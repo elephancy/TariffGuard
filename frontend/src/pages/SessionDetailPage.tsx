@@ -103,7 +103,7 @@ export function SessionDetailPage({ sessionId, onBack }: { sessionId: string; on
       <section className="border border-danger/25 bg-danger/5 p-5">
         <div className="flex items-center gap-2"><Ban size={18} className="text-danger" /><h3 className="font-semibold">Invalidate session</h3></div>
         <p className="mt-2 text-sm text-slate-400">Exclude a compromised or incorrect session from active operational results while preserving its audit record.</p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row"><input disabled={session.status === "INVALIDATED"} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason for invalidation" className="h-10 min-w-0 flex-1 rounded border border-line bg-ink px-3 text-sm outline-none focus:border-danger/50" /><button disabled={invalidating || reason.trim().length < 3 || session.status === "INVALIDATED"} onClick={invalidate} className="h-10 rounded bg-danger px-4 text-sm font-semibold text-white disabled:opacity-40">{session.status === "INVALIDATED" ? "Invalidated" : "Invalidate"}</button></div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row"><input disabled={session.status === "INVALIDATED"} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason for invalidation" className="h-10 min-w-0 flex-1 rounded border border-line bg-ink px-3 text-sm outline-hidden focus:border-danger/50" /><button disabled={invalidating || reason.trim().length < 3 || session.status === "INVALIDATED"} onClick={invalidate} className="h-10 rounded bg-danger px-4 text-sm font-semibold text-white disabled:opacity-40">{session.status === "INVALIDATED" ? "Invalidated" : "Invalidate"}</button></div>
       </section>
     </div>
   );

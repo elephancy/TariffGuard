@@ -160,14 +160,14 @@ export function OverviewPage({
               {activeView === "Overview" && !detailSessionId && (
                 <div className={`flex h-10 items-center rounded border border-line bg-panel transition-[width] ${searchOpen ? "w-full sm:w-64" : "w-10"}`}>
                   <button className="grid h-10 w-10 shrink-0 place-items-center text-slate-300" aria-label="Search sessions" onClick={() => setSearchOpen((value) => !value)}><Search size={17} /></button>
-                  {searchOpen && <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search recent sessions" className="min-w-0 flex-1 bg-transparent pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none" />}
+                  {searchOpen && <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search recent sessions" className="min-w-0 flex-1 bg-transparent pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-hidden" />}
                 </div>
               )}
               <button onClick={() => navigate("Alerts")} className="relative grid h-10 w-10 place-items-center rounded border border-line bg-panel text-slate-300" aria-label={`${alertTotal} alerts`}><Bell size={17} />{alertTotal > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger ring-2 ring-panel" />}</button>
               <span className="hidden max-w-40 truncate rounded border border-line bg-panel px-3 py-2.5 text-sm font-medium sm:block" title={operatorName}>{operatorName}</span>
               <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded border border-line bg-panel px-3 text-sm text-slate-300 sm:flex-none">
                 <CalendarDays size={16} className="shrink-0 text-slate-500" />
-                <input className="min-w-0 bg-transparent text-slate-100 outline-none [color-scheme:dark]" type="date" value={date} onChange={(event) => onDateChange(event.target.value)} aria-label="Dashboard date" />
+                <input className="min-w-0 bg-transparent text-slate-100 outline-hidden [color-scheme:dark]" type="date" value={date} onChange={(event) => onDateChange(event.target.value)} aria-label="Dashboard date" />
               </label>
               <button onClick={exportSessions} className="flex h-10 items-center gap-2 rounded bg-mint px-3 text-sm font-semibold text-slate-950"><Download size={16} /><span className="hidden sm:inline">Export</span></button>
               {onSignOut && <button onClick={onSignOut} className="grid h-10 w-10 place-items-center rounded border border-line bg-panel text-slate-300 hover:text-white" aria-label="Sign out"><LogOut size={17} /></button>}

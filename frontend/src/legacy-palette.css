@@ -1,0 +1,22 @@
+/* Preserve the dashboard's existing palette while upgrading Tailwind. */
+@theme {
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-gray-200: #e5e7eb;
+  --color-gray-400: #9ca3af;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-950: #020617;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+}

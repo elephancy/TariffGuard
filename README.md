@@ -28,6 +28,19 @@ Lambda daily audit worker <--------- SQS dead-letter queue
 EventBridge daily schedule
 ```
 
+## Automated Checks
+
+The `CI` workflow runs on pull requests and pushes to `main`. It checks the
+Python 3.12 backend with Ruff, the existing pytest suite, and a dependency audit;
+builds the frontend with Node 24 and audits its locked dependencies; and checks
+Terraform formatting and configuration using the committed provider lockfile.
+Terraform initialization disables the backend. These checks need no AWS
+credentials and do not plan, apply, seed, or deploy infrastructure.
+
+The frontend uses Tailwind 4's Vite integration. It supports Safari 16.4+,
+Chrome 111+, and Firefox 128+. The existing dashboard colors and keyboard
+focus styles are preserved during the migration.
+
 ## Repository Walkthrough
 
 ```text

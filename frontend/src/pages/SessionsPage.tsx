@@ -81,15 +81,15 @@ export function SessionsPage({ onOpenSession }: { onOpenSession: (sessionId: str
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="flex h-10 items-center gap-2 rounded border border-line bg-ink px-3 text-slate-400">
               <Search size={16} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Session, charger, user" className="w-full bg-transparent text-sm text-white outline-none sm:w-48" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Session, charger, user" className="w-full bg-transparent text-sm text-white outline-hidden sm:w-48" />
             </label>
             <label className="flex h-10 items-center gap-2 rounded border border-line bg-ink px-3 text-slate-400">
               <Filter size={16} />
-              <select value={status} onChange={(event) => setStatus(event.target.value as SessionStatus | "ALL")} className="bg-transparent text-sm text-white outline-none">
+              <select value={status} onChange={(event) => setStatus(event.target.value as SessionStatus | "ALL")} className="bg-transparent text-sm text-white outline-hidden">
                 {statuses.map((item) => <option key={item} value={item} className="bg-panel">{item.split("_").join(" ")}</option>)}
               </select>
             </label>
-            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="h-10 rounded border border-line bg-ink px-3 text-sm text-white outline-none">
+            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="h-10 rounded border border-line bg-ink px-3 text-sm text-white outline-hidden">
               {pageSizes.map((size) => <option key={size} value={size} className="bg-panel">{size} / page</option>)}
             </select>
           </div>
