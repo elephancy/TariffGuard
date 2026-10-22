@@ -169,7 +169,7 @@ export function OverviewPage({
                 <CalendarDays size={16} className="shrink-0 text-slate-500" />
                 <input className="min-w-0 bg-transparent text-slate-100 outline-hidden [color-scheme:dark]" type="date" value={date} onChange={(event) => onDateChange(event.target.value)} aria-label="Dashboard date" />
               </label>
-              <button onClick={exportSessions} className="flex h-10 items-center gap-2 rounded bg-mint px-3 text-sm font-semibold text-slate-950"><Download size={16} /><span className="hidden sm:inline">Export</span></button>
+              <button onClick={exportSessions} aria-label="Export sessions" className="flex h-10 items-center gap-2 rounded bg-mint px-3 text-sm font-semibold text-slate-950"><Download size={16} /><span className="hidden sm:inline">Export</span></button>
               {onSignOut && <button onClick={onSignOut} className="grid h-10 w-10 place-items-center rounded border border-line bg-panel text-slate-300 hover:text-white" aria-label="Sign out"><LogOut size={17} /></button>}
             </div>
           </div>

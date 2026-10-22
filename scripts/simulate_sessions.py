@@ -7,7 +7,9 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from http_client import open_http
 
 SCENARIOS_BY_SEVERITY = {
     "VALID": ("VALID_AC", "VALID_DC"),
@@ -117,7 +119,7 @@ def post(url: str, payload: dict[str, object], token: str | None) -> int:
     request = Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
     for attempt in range(6):
         try:
-            with urlopen(request, timeout=20) as response:
+            with open_http(request, timeout=20) as response:
                 return response.status
         except HTTPError as exc:
             if exc.code not in {429, 500, 502, 503, 504} or attempt == 5:
