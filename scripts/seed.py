@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
+from http_client import open_http
 
 TARIFF = {
     "tariffId": "berlin_public_standard",
@@ -54,7 +55,9 @@ SESSIONS = [
 ]
 
 
-def post(api_url: str, path: str, payload: dict, access_token: str | None = None) -> tuple[int, str]:
+def post(
+    api_url: str, path: str, payload: dict, access_token: str | None = None
+) -> tuple[int, str]:
     headers = {"content-type": "application/json"}
     if access_token:
         headers["authorization"] = f"Bearer {access_token}"
@@ -65,7 +68,7 @@ def post(api_url: str, path: str, payload: dict, access_token: str | None = None
         method="POST",
     )
     try:
-        with urlopen(request, timeout=10) as response:
+        with open_http(request, timeout=10) as response:
             return response.status, response.read().decode("utf-8")
     except HTTPError as exc:
         return exc.code, exc.read().decode("utf-8")
