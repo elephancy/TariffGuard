@@ -9,6 +9,7 @@ from tariffguard.repositories.dynamodb_repo import DynamoRepository, alerts_from
 from tariffguard.services.pricing import calculate_price
 from tariffguard.services.validation import status_from_flags, validate_session
 from tariffguard.utils.logging import log
+from tariffguard.utils.observability import observe
 from tariffguard.utils.time import iso_now
 
 
@@ -75,6 +76,7 @@ def mark_failed_processing(store: DynamoRepository, session_id: str, error: str)
     log("session_marked_failed_processing", sessionId=session_id, error=error)
     
 
+@observe("validation")
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     del context
     store = repo()

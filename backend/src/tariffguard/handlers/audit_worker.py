@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from tariffguard.repositories.dynamodb_repo import DynamoRepository
+from tariffguard.utils.observability import observe
 from tariffguard.utils.time import iso_now
 
 
@@ -16,6 +17,7 @@ def repo() -> DynamoRepository:
     )
 
 
+@observe("audit")
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     del event, context
     store = repo()
