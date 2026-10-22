@@ -7,7 +7,7 @@ from datetime import date as dt_date
 from datetime import timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import UUID4, BaseModel, ConfigDict, Field, ValidationError
 
 from tariffguard.models.session import SessionIngest, SessionRecord, ValidationFlag
 from tariffguard.models.tariff import TariffVersion
@@ -20,6 +20,7 @@ from tariffguard.repositories.dynamodb_repo import (
 )
 from tariffguard.services.idempotency import idempotency_key, payload_hash
 from tariffguard.services.overview import build_overview
+from tariffguard.utils.observability import emit, observe
 from tariffguard.utils.response import no_content, response
 from tariffguard.utils.time import iso_now
 
@@ -57,6 +58,39 @@ class UserStatusRequest(BaseModel):
     enabled: bool
 
 
+class ClientErrorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    eventId: UUID4
+    kind: Literal["runtime_error", "unhandled_rejection"]
+    screen: Literal["dashboard"]
+
+
+def _client_error(event: dict[str, Any], cors_origin: str) -> dict[str, Any]:
+    claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+    if not isinstance(claims.get("sub"), str) or not claims["sub"]:
+        return response(401, {"error": "authentication_required"}, cors_origin=cors_origin)
+    raw = event.get("body")
+    if not isinstance(raw, str) or event.get("isBase64Encoded", False):
+        return response(400, {"error": "invalid_client_event"}, cors_origin=cors_origin)
+    try:
+        size = len(raw.encode("utf-8"))
+    except UnicodeEncodeError:
+        return response(400, {"error": "invalid_client_event"}, cors_origin=cors_origin)
+    if size > 1024:
+        return response(413, {"error": "client_event_too_large"}, cors_origin=cors_origin)
+    try:
+        report = ClientErrorRequest.model_validate_json(raw)
+    except ValidationError:
+        # Pydantic's error details include the rejected input; never echo or log them here.
+        return response(400, {"error": "invalid_client_event"}, cors_origin=cors_origin)
+    emit(
+        "client.error", service="web", event_id=str(report.eventId),
+        kind=report.kind, screen=report.screen,
+    )
+    return no_content(cors_origin=cors_origin)
+
+
 def _groups(event: dict[str, Any]) -> set[str]:
     value = (
         event.get("requestContext", {})
@@ -87,16 +121,19 @@ def _cursor(value: dict[str, Any] | None) -> str | None:
     return urlsafe_b64encode(encoded.encode()).decode()
 
 
+@observe("api")
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     del context
     cors_origin = os.environ.get("CORS_ORIGIN", "*")
     method, path = _route(event)
-    store = repo()
 
     if method == "OPTIONS":
         return no_content(cors_origin=cors_origin)
     if method == "GET" and path == "/health":
         return response(200, {"status": "ok"}, cors_origin=cors_origin)
+    if method == "POST" and path == "/client-errors":
+        return _client_error(event, cors_origin)
+    store = repo()
     if method == "POST" and path == "/tariffs":
         try:
             tariff = TariffVersion.model_validate(_body(event))

@@ -33,6 +33,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 locals {
   api_routes = toset([
     "GET /health",
+    "POST /client-errors",
     "POST /tariffs",
     "GET /tariffs",
     "GET /tariffs/{tariffId}/versions",
@@ -61,6 +62,9 @@ resource "aws_apigatewayv2_route" "routes" {
 }
 
 resource "aws_apigatewayv2_stage" "default" {
+  # Route settings require the route to exist before AWS accepts UpdateStage.
+  depends_on = [aws_apigatewayv2_route.routes]
+
   api_id      = aws_apigatewayv2_api.http.id
   name        = "$default"
   auto_deploy = true
@@ -68,6 +72,12 @@ resource "aws_apigatewayv2_stage" "default" {
   default_route_settings {
     throttling_burst_limit = var.api_throttling_burst_limit
     throttling_rate_limit  = var.api_throttling_rate_limit
+  }
+
+  route_settings {
+    route_key              = "POST /client-errors"
+    throttling_burst_limit = min(5, var.api_throttling_burst_limit)
+    throttling_rate_limit  = min(1, var.api_throttling_rate_limit)
   }
 
   access_log_settings {
