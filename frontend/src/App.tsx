@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { LogIn, ShieldCheck } from "lucide-react";
 import type { User } from "oidc-client-ts";
 import type { Overview } from "./api/types";
 import { getOverview } from "./api/client";
 import { apiConfigured, authConfigured, authExpiredEvent, initializeAuth, signIn, signOut } from "./auth";
-import { OverviewPage } from "./pages/OverviewPage";
+
+const OverviewPage = lazy(() => import("./pages/OverviewPage").then((module) => ({ default: module.OverviewPage })));
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -88,13 +89,15 @@ export default function App() {
     return <StateFrame title="No overview data" body="The API returned no dashboard payload." />;
   }
   return (
-    <OverviewPage
-      overview={overview}
-      date={date}
-      onDateChange={setDate}
-      operatorName={user?.profile.email ?? user?.profile.preferred_username ?? "Demo operator"}
-      onSignOut={apiConfigured ? () => signOut().catch((error: Error) => setAuthError(error.message)) : undefined}
-    />
+    <Suspense fallback={<StateFrame title="Loading dashboard" body="Preparing the dashboard view." loading />}>
+      <OverviewPage
+        overview={overview}
+        date={date}
+        onDateChange={setDate}
+        operatorName={user?.profile.email ?? user?.profile.preferred_username ?? "Demo operator"}
+        onSignOut={apiConfigured ? () => signOut().catch((error: Error) => setAuthError(error.message)) : undefined}
+      />
+    </Suspense>
   );
 }
 
