@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { LogIn, ShieldCheck } from "lucide-react";
 import type { User } from "oidc-client-ts";
 import type { Overview } from "./api/types";
 import { getOverview } from "./api/client";
 import { apiConfigured, authConfigured, authExpiredEvent, initializeAuth, signIn, signOut } from "./auth";
-import { OverviewPage } from "./pages/OverviewPage";
+
+const OverviewPage = lazy(() => import("./pages/OverviewPage").then((module) => ({ default: module.OverviewPage })));
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -88,14 +89,33 @@ export default function App() {
     return <StateFrame title="No overview data" body="The API returned no dashboard payload." />;
   }
   return (
-    <OverviewPage
-      overview={overview}
-      date={date}
-      onDateChange={setDate}
-      operatorName={user?.profile.email ?? user?.profile.preferred_username ?? "Demo operator"}
-      onSignOut={apiConfigured ? () => signOut().catch((error: Error) => setAuthError(error.message)) : undefined}
-    />
+    <DashboardErrorBoundary>
+      <Suspense fallback={<StateFrame title="Loading dashboard" body="Preparing the dashboard view." loading />}>
+        <OverviewPage
+          overview={overview}
+          date={date}
+          onDateChange={setDate}
+          operatorName={user?.profile.email ?? user?.profile.preferred_username ?? "Demo operator"}
+          onSignOut={apiConfigured ? () => signOut().catch((error: Error) => setAuthError(error.message)) : undefined}
+        />
+      </Suspense>
+    </DashboardErrorBoundary>
   );
+}
+
+class DashboardErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <StateFrame title="Dashboard unavailable" body="The dashboard could not be loaded. Reload the page to try again." tone="error" onRetry={() => window.location.reload()} retryLabel="Reload dashboard" />;
+    }
+    return this.props.children;
+  }
 }
 
 function LoginFrame({ onSignIn }: { onSignIn: () => void }) {
@@ -120,12 +140,14 @@ function StateFrame({
   tone = "default",
   loading = false,
   onRetry,
+  retryLabel = "Try again",
 }: {
   title: string;
   body: string;
   tone?: "default" | "error";
   loading?: boolean;
   onRetry?: () => void;
+  retryLabel?: string;
 }) {
   return (
     <div className="min-h-screen bg-ink text-slate-100 lg:grid lg:grid-cols-[240px_1fr]">
@@ -142,11 +164,11 @@ function StateFrame({
           <div className="lg:hidden"><Brand /></div>
         </header>
         <div className="grid flex-1 place-items-center p-5">
-          <div className={`w-full max-w-md border-l-2 ${tone === "error" ? "border-danger" : "border-mint"} bg-panel px-6 py-7 shadow-panel`}>
+          <div role={tone === "error" ? "alert" : undefined} className={`w-full max-w-md border-l-2 ${tone === "error" ? "border-danger" : "border-mint"} bg-panel px-6 py-7 shadow-panel`}>
             {loading && <div className="mb-5 h-1 w-full overflow-hidden rounded bg-panelSoft"><div className="loading-bar h-full bg-mint" /></div>}
             <h1 className="text-xl font-semibold">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">{body}</p>
-            {onRetry && <button onClick={onRetry} className="mt-5 rounded bg-mint px-4 py-2 text-sm font-semibold text-slate-950">Try again</button>}
+            {onRetry && <button onClick={onRetry} className="mt-5 rounded bg-mint px-4 py-2 text-sm font-semibold text-slate-950">{retryLabel}</button>}
           </div>
         </div>
       </main>
