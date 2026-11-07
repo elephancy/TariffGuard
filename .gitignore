@@ -223,6 +223,8 @@ __marimo__/
 node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
+frontend/test-results/
+frontend/playwright-report/
 build/
 .terraform/
 .terraform-build/

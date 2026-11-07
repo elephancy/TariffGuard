@@ -80,6 +80,10 @@ jobs:
       - run: npm ci --no-fund --no-audit
       - run: npm run build
       - run: npm audit --audit-level=high
+      - name: Install browser for dashboard loading checks
+        run: npx playwright install --with-deps chromium
+      - name: Verify production dashboard loading and recovery
+        run: npm run test:browser
 
   infrastructure:
     runs-on: ubuntu-latest
